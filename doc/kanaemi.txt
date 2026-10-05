@@ -1,0 +1,94 @@
+*kanaemi.txt*	Read, set and watch the mode of the Kanaemi IME
+
+==============================================================================
+CONTENTS						*kanaemi-contents*
+
+INTRODUCTION		|kanaemi-introduction|
+SETUP			|kanaemi-setup|
+FUNCTIONS		|kanaemi-functions|
+VARIABLES		|kanaemi-variables|
+EXAMPLES		|kanaemi-examples|
+
+==============================================================================
+INTRODUCTION						*kanaemi-introduction*
+
+kanaemi.vim talks to the control port of the Kanaemi IME, and reads, sets
+and watches the mode of the input field that has the focus. The mode is
+"kana" or "abc".
+
+Works with Vim (|+channel| and |+timers|) and Neovim.
+
+==============================================================================
+SETUP							*kanaemi-setup*
+
+Kanaemi listens for other programs only when its settings name a port: >toml
+	[control]
+	port = 50123
+<
+Tell the plugin the same port: >vim
+	let g:kanaemi_port = 50123
+<
+==============================================================================
+FUNCTIONS						*kanaemi-functions*
+
+kanaemi#get_mode()					*kanaemi#get_mode()*
+	Returns the mode of the field with the focus, "kana" or "abc".
+
+kanaemi#set_mode({mode})				*kanaemi#set_mode()*
+	Puts the field with the focus in {mode}, "kana" or "abc", and
+	returns the mode it is in afterwards. A password field stays in
+	"abc" whatever {mode} is.
+
+kanaemi#watch_mode({callback})				*kanaemi#watch_mode()*
+	Calls {callback} with the new mode each time the mode of the field
+	with the focus changes. The mode is |v:null| when no field that uses
+	Kanaemi has the focus, or when the connection to the IME is lost;
+	the plugin then connects again every
+	|g:kanaemi_reconnect_interval| milliseconds while anyone watches.
+	The mode at the time of the call is not told; use
+	|kanaemi#get_mode()| for it.
+
+	Returns a |Funcref| that stops the watch when called.
+
+	An error thrown by {callback} is shown and does not stop the other
+	callbacks.
+
+Every function throws a message starting with "kanaemi: " when it fails:
+when |g:kanaemi_port| is not set, when the IME cannot be connected to or
+does not answer, and when the IME refuses. The IME refuses with
+"kanaemi: no-field: ..." when no field that uses Kanaemi has the focus.
+
+==============================================================================
+VARIABLES						*kanaemi-variables*
+
+g:kanaemi_port						*g:kanaemi_port*
+	The port Kanaemi listens on, as written in the [control] section of
+	its settings. No default.
+
+g:kanaemi_timeout					*g:kanaemi_timeout*
+	Milliseconds to wait for the IME to connect and to answer.
+	Default: 1000
+
+g:kanaemi_reconnect_interval			*g:kanaemi_reconnect_interval*
+	Milliseconds between attempts to connect again after the connection
+	was lost while anyone watches.
+	Default: 5000
+
+==============================================================================
+EXAMPLES						*kanaemi-examples*
+
+Switch to ABC when leaving Insert mode: >vim
+	autocmd InsertLeave * silent! call kanaemi#set_mode('abc')
+<
+Show the mode in the statusline: >vim
+	function! s:on_mode(mode) abort
+	  let g:kanaemi_mode = a:mode
+	  redrawstatus
+	endfunction
+	let g:kanaemi_mode = v:null
+	silent! let g:kanaemi_mode = kanaemi#get_mode()
+	call kanaemi#watch_mode(function('s:on_mode'))
+	set statusline+=%{g:kanaemi_mode\ is#\ 'kana'\ ?\ '[あ]'\ :\ ''}
+<
+==============================================================================
+vim:tw=78:ts=8:noet:ft=help:norl:
